@@ -23,8 +23,6 @@
 ROOT = $(CURDIR)
 BUILD = $(ROOT)/build
 
-SUPPORT.RAWFS.md-sector = $(ROOT)/support/rawfs/base-metadata-sector
-
 BUILD.RAWFS.stage1 = $(BUILD)/rawfs-stage1.bin
 BUILD.RAWFS.stage2 = $(BUILD)/rawfs-stage2.bin
 BUILD.RAWFS.disk = $(BUILD)/rawfs.img
