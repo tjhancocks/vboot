@@ -1,0 +1,5 @@
+# macOS Specific
+.DS_Store
+
+# Build information
+build/
