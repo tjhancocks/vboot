@@ -87,7 +87,6 @@ _load_elf:
 		call _check_elf
 		call _parse_elf_phdr
 	.entry_point:
-		xchg bx, bx
 		mov esi, [bp - 4]
 		mov eax, [es:esi + ELFHdr.e_entry]
 		mov dword[$entry], eax

@@ -26,12 +26,13 @@ BUILD = $(ROOT)/build
 BUILD.RAWFS.stage1 = $(BUILD)/rawfs-stage1.bin
 BUILD.RAWFS.stage2 = $(BUILD)/rawfs-stage2.bin
 BUILD.RAWFS.disk = $(BUILD)/rawfs.img
+BUILD.KERNEL.stub = $(BUILD)/stub-kernel
 TOOL.bsize = $(ROOT)/tool/bsize/bsize.sh
 
-# This is a bit of a hack. We should have a small test kernel in the vboot
-# repo that can be used used for validating the multiboot information generated
-# by vboot.
-vkernel = $(ROOT)/../vkernel/build/kernel
+TARGET.TRIPLET = i686-elf
+TOOL.CC = $(shell which $(TARGET.TRIPLET)-gcc)
+TOOL.LD = $(shell which $(TARGET.TRIPLET)-ld)
+TOOL.AS = $(shell which nasm)
 
 ################################################################################
 
@@ -42,6 +43,9 @@ all: $(BUILD.RAWFS.disk)
 clean:
 	-rm -rf $(BUILD)
 
+.PHONY: stub-kernel
+stub-kernel: $(BUILD.KERNEL.stub)
+
 .PHONY: rawfs-test
 rawfs-test: clean $(BUILD.RAWFS.disk)
 	bochs -q "boot:a" "floppya: 1_44=$(BUILD.RAWFS.disk), status=inserted" \
@@ -49,7 +53,9 @@ rawfs-test: clean $(BUILD.RAWFS.disk)
 
 ################################################################################
 
-$(BUILD.RAWFS.disk): $(BUILD.RAWFS.stage1) $(BUILD.RAWFS.stage2)
+$(BUILD.RAWFS.disk): $(BUILD.RAWFS.stage1) \
+					 $(BUILD.RAWFS.stage2) \
+					 $(BUILD.KERNEL.stub)
 	-mkdir $(BUILD)
 	dd if=/dev/zero of=$@ \
 		bs=512 count=2880
@@ -57,7 +63,7 @@ $(BUILD.RAWFS.disk): $(BUILD.RAWFS.stage1) $(BUILD.RAWFS.stage2)
 		bs=512 conv=notrunc
 	dd if=$(BUILD.RAWFS.stage2) of=$@ \
 		bs=512 seek=2 conv=notrunc
-	dd if=$(vkernel) of=$@ \
+	dd if=$(BUILD.KERNEL.stub) of=$@ \
 		bs=512 seek=$(shell \
 			$(TOOL.bsize) $(BUILD.RAWFS.stage2) --offset=2 \
 		) conv=notrunc
@@ -70,7 +76,7 @@ $(BUILD.RAWFS.disk): $(BUILD.RAWFS.stage1) $(BUILD.RAWFS.stage2)
 		$(TOOL.bsize) $(BUILD.RAWFS.stage2) --offset=2 \
 	)
 	patch -f $@ -a 552 -t dd -d $(shell \
-		$(TOOL.bsize) $(BUILD.RAWFS.stage2) $(vkernel) --offset=2 \
+		$(TOOL.bsize) $(BUILD.RAWFS.stage2) $(BUILD.KERNEL.stub) --offset=2 \
 	)
 
 $(BUILD.RAWFS.stage1):
@@ -81,3 +87,13 @@ $(BUILD.RAWFS.stage2):
 	-mkdir $(BUILD)
 	nasm -D__RAWFS__ -o $@ stage2/bios/start.s
 
+$(BUILD.KERNEL.stub):
+	-mkdir -p $(BUILD)/kernel
+	$(TOOL.CC) -ffreestanding -Wall -Wextra -nostdlib -nostdinc -fno-builtin \
+	-fno-stack-protector -nostartfiles -nodefaultlibs -m32 \
+	-finline-functions -std=c11 -O0 -fstrength-reduce \
+	-fomit-frame-pointer -c -I./kernel -o build/kernel/kernel.o kernel/kernel.c
+	$(TOOL.AS) -felf -o build/kernel/start.o kernel/kernel.s
+	$(TOOL.LD) -Tkernel/kernel.ld -nostdlib -nostartfiles -o $@ \
+		build/kernel/kernel.o \
+		build/kernel/start.o
