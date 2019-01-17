@@ -94,5 +94,6 @@ ENDSTRUC
 
 	bits 	32
 _boot_kernel:
-		mov eax, dword[$entry]
-		jmp eax
+		mov esi, dword[$entry]
+		mov eax, 0x2BADB002
+		jmp esi
