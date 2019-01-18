@@ -86,6 +86,7 @@ _pmode_gdt_end:
 	%include "stage2/bios/unreal.s"
 	%include "stage2/bios/disk.s"
 	%include "stage2/bios/elf.s"
+	%include "stage2/bios/memory.s"
 
 ; Boot Configuration - This is a structure that resides in memory and can be
 ; referenced later by the _third_ stage of the bootloader. The third stage will

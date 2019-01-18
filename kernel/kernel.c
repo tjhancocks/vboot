@@ -72,6 +72,14 @@ __attribute__((noreturn)) void kmain(
 	puts("boot_loader_name: ", PLAIN_TEXT);
 	puts((void *)mb->boot_loader_name, YELLOW_TEXT);
 	puts("\n", PLAIN_TEXT);
+
+	assert(mb->mem_lower == 640, "mem_lower should be 640KiB");
+	assert(mb->mem_upper >= 0, "mem_upper should be greater than 0KiB");
+	assert(
+		mb->mmap_length % 24 == 0, "expected mmap_length to be a multiple of 24"
+	);
+	assert(mb->mmap_addr == 0x20000, "mmap_addr should be 0x20000");
+
 	/* make sure we don't fall out of the end of the kernel. */
 	for (;;)
 		__asm__ __volatile__("hlt");

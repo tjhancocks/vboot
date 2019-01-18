@@ -160,6 +160,8 @@ _prepare_mb_info:
 		mov edi, dword[_mb_info]
 		mov eax, _vboot_name
 		mov dword[es:edi + MBInfo.boot_loader_name], eax
+	.lower_upper_memory:
+		call _detect_memory_bios
 	.epilogue:
 		mov sp, bp
 		pop bp
