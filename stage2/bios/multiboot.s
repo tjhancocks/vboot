@@ -145,3 +145,22 @@ STRUC MMap
 	.length					resq 1
 	.type					resd 1
 ENDSTRUC
+
+_prepare_mb_info:
+	.prologue:
+		push bp
+		mov bp, sp
+	.clear:	
+		unreal es
+		mov cx, 116
+		mov edi, dword[_mb_info]
+		xor eax, eax
+		a32 rep stosb
+	.boot_loader_name:
+		mov edi, dword[_mb_info]
+		mov eax, _vboot_name
+		mov dword[es:edi + MBInfo.boot_loader_name], eax
+	.epilogue:
+		mov sp, bp
+		pop bp
+		ret

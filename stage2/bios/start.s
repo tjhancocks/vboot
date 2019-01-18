@@ -33,6 +33,9 @@ _pref:
 	.def_width		dw 	640 ; The default screen width if native not found
 	.def_height		dw 	480 ; The default screen height if native not found
 
+; Read-only constants used in the second stage of the vboot bootloader.
+_vboot_name:		db "vboot bootloader v0.1", 0x00
+_mb_info:			dd 0x10000
 ; The starting point for the second stage of the vboot bootloader.
 _start:
 	.enable_a20:
@@ -45,10 +48,13 @@ _start:
 	.a20_loaded:
 		call _go_unreal
 		call _load_kernel
+		call _prepare_mb_info
 		; call _prepare_vesa
 		; call _prepare_mmap
 	.pmode_32:
 		cli
+		xor ax, ax							; Make sure we're back to a normal
+		mov ds, ax							; real mode segment or we'll crash
 		mov eax, cr0
 		or al, 1
 		mov cr0, eax
@@ -74,6 +80,7 @@ _pmode_gdt:
 _pmode_gdt_end:
 
 ; Include all the required components for the second stage.
+	%include "stage2/bios/multiboot.s"
 	%include "stage2/bios/raw.s"
 	%include "stage2/bios/vesa.s"
 	%include "stage2/bios/unreal.s"
@@ -95,5 +102,6 @@ ENDSTRUC
 	bits 	32
 _boot_kernel:
 		mov esi, dword[$entry]
-		mov eax, 0x2BADB002
+		mov eax, MULTIBOOT_BOOTLOADER_MAGIC
+		mov ebx, dword[_mb_info]
 		jmp esi
