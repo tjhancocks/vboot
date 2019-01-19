@@ -180,11 +180,13 @@ _prepare_mb_info:
 		push bp
 		mov bp, sp
 	.clear:	
-		unreal es
-		mov cx, 116
-		mov edi, dword[_mb_info]
 		xor eax, eax
-		a32 rep stosb
+		mov es, ax
+		mov ds, ax
+		mov ecx, 29
+		xchg bx, bx
+		mov edi, dword[_mb_info]
+		a32 rep stosd
 	.boot_loader_name:
 		mov edi, dword[_mb_info]
 		mov eax, _vboot_name

@@ -90,4 +90,6 @@ _boot_kernel:
 		mov esi, dword[$KERNEL_ENTRY]
 		mov eax, MULTIBOOT_BOOTLOADER_MAGIC
 		mov ebx, dword[_mb_info]
+		mov ecx, dword[$KERNEL_LIMIT]
+		mov edx, dword[$KERNEL_BASE]
 		jmp esi

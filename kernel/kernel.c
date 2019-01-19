@@ -27,16 +27,19 @@
 #define PLAIN_TEXT	0x07
 #define YELLOW_TEXT 0x0E
 
+extern void *kstart;
+extern void *kend;
+
 void puts_fail(const char *restrict message, unsigned long value);
 void puts_ok(const char *restrict message);
 void puts(const char* restrict str, unsigned char attr);
 void putc(const char c, unsigned char attr);
 
-#define assert(_cond, _message) do { \
+#define assert(_cond, _message, _value) do { \
 	if ((_cond)) \
 		puts_ok((_message));\
 	else \
-		puts_fail((_message), 0);\
+		puts_fail((_message), (unsigned long)(_value));\
 } while(0);
 
 int strcmp(const char *restrict s0, const char *restrict s1);
@@ -44,7 +47,8 @@ int strcmp(const char *restrict s0, const char *restrict s1);
 ////////////////////////////////////////////////////////////////////////////////
 
 __attribute__((noreturn)) void kmain(
-	struct multiboot_info *mb, multiboot_uint32_t boot_magic
+	struct multiboot_info *mb, multiboot_uint32_t boot_magic,
+	unsigned int base, unsigned int limit
 ) {
 	/* setup the VGA Text Mode display, that will be used for showing the
 	   report */
@@ -57,32 +61,82 @@ __attribute__((noreturn)) void kmain(
 
 	assert(
 		boot_magic == MULTIBOOT_BOOTLOADER_MAGIC, 
-		"parameter 'boot_magic' contains value '0x2BADB002'."
+		"parameter 'boot_magic' contains value '0x2BADB002'.", boot_magic
 	);
 
 	assert(
 		mb != 0,
-		"multiboot_info reference must not be NULL."
+		"multiboot_info reference must not be NULL.", mb
 	);
 
 	assert(
 		strcmp(mb->boot_loader_name, "vboot bootloader v0.1") == 0,
-		"mb->boot_loader_name is set and provided."
+		"mb->boot_loader_name is set and provided.", mb->boot_loader_name
 	);
 	puts("boot_loader_name: ", PLAIN_TEXT);
 	puts((void *)mb->boot_loader_name, YELLOW_TEXT);
 	puts("\n", PLAIN_TEXT);
 
-	assert(mb->mem_lower == 640, "mem_lower should be 640KiB");
-	assert(mb->mem_upper >= 0, "mem_upper should be greater than 0KiB");
 	assert(
-		mb->mmap_length % 24 == 0, "expected mmap_length to be a multiple of 24"
+		base == (unsigned int)&kstart, "Checking kernel base address", 
+		(unsigned int)&kstart
 	);
-	assert(mb->mmap_addr == 0x20000, "mmap_addr should be 0x20000");
+	assert(
+		limit == (unsigned int)&kend, "Checking kernel limit", 
+		(unsigned int)&kend
+	);
+
+	assert(mb->mem_lower == 640, "mem_lower should be 640KiB", mb->mem_lower);
+	assert(
+		mb->mem_upper >= 0, "mem_upper should be greater than 0KiB", 
+		mb->mem_upper
+	);
+	assert(
+		mb->mmap_length % 24 == 0, 
+		"expected mmap_length to be a multiple of 24", mb->mmap_length
+	);
+	assert(
+		mb->mmap_addr == 0x20000, "mmap_addr should be 0x20000", mb->mmap_addr
+	);
 
 	/* make sure we don't fall out of the end of the kernel. */
 	for (;;)
 		__asm__ __volatile__("hlt");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#define BASE_UPPER   "0123456789ABCDEF"
+
+void utoa(unsigned long n, unsigned char base)
+{
+	char buffer[10] = { 0 };
+	char *ptr = buffer + 8;
+	const char *digits = BASE_UPPER;
+
+	if (n == 0) {
+		putc('0', 0x0f);
+		return;
+	}
+
+	register unsigned long v = n;
+	register unsigned long dV = 0;
+	register unsigned int len = 1;
+
+	while (v >= (unsigned long)base) {
+		dV = v % base;
+		v /= base;
+		*ptr-- = *(digits + dV);
+		++len;
+	}
+
+	if (v > 0) {
+		dV = v % base;
+		*ptr-- = *(digits + dV);
+		++len;
+	}
+
+	puts(ptr + 1, 0x0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +168,9 @@ void puts_fail(const char *restrict message, unsigned long value)
 	puts("FAIL", RED_TEXT);
 	puts("] ", PLAIN_TEXT);
 	puts(message, PLAIN_TEXT);
-	putc('\n', PLAIN_TEXT);
+	puts(" [", PLAIN_TEXT);
+	utoa(value, 16);
+	puts("]\n", PLAIN_TEXT);
 }
 
 void puts_ok(const char *restrict message)

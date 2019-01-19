@@ -25,6 +25,8 @@ SECTIONS
 {
 	. = 0x00100000;
 
+	kstart = .; _kstart = .; __kstart = .;
+
 	.__mbHeader : {
 		*(.__mbHeader)
 	}
@@ -45,6 +47,7 @@ SECTIONS
 	}
 
 	end = .;
+	kend = .; _kend = .; __kend = .;
 
 	/DISCARD/ : {
 		*(.common)
