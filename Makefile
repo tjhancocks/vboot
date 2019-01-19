@@ -52,6 +52,10 @@ rawfs-test: clean $(BUILD.RAWFS.disk)
 	bochs -q "boot:a" "floppya: 1_44=$(BUILD.RAWFS.disk), status=inserted" \
 		"magic_break: enabled=1"
 
+.PHONY: rawfs-test-q
+rawfs-test-q: clean $(BUILD.RAWFS.disk)
+	qemu-system-i386 -m 256 -serial stdio -fda $(BUILD.RAWFS.disk)
+
 ################################################################################
 
 $(BUILD.RAWFS.disk): $(BUILD.RAWFS.stage1) \
