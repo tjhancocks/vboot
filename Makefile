@@ -27,6 +27,7 @@ BUILD.RAWFS.stage1 = $(BUILD)/rawfs-stage1.bin
 BUILD.RAWFS.stage2 = $(BUILD)/rawfs-stage2.bin
 BUILD.RAWFS.disk = $(BUILD)/rawfs.img
 BUILD.KERNEL.stub = $(BUILD)/stub-kernel
+BUILD.RAMDISK = $(ROOT)/kernel/ramdisk
 TOOL.bsize = $(ROOT)/tool/bsize/bsize.sh
 
 TARGET.TRIPLET = i686-elf
@@ -67,16 +68,30 @@ $(BUILD.RAWFS.disk): $(BUILD.RAWFS.stage1) \
 		bs=512 seek=$(shell \
 			$(TOOL.bsize) $(BUILD.RAWFS.stage2) --offset=2 \
 		) conv=notrunc
+	dd if=$(BUILD.RAMDISK) of=$@ \
+		bs=512 seek=$(shell \
+			$(TOOL.bsize) $(BUILD.RAWFS.stage2) $(BUILD.KERNEL.stub) \
+			--offset=2 \
+		) conv=notrunc
 	patch -f $@ -a 512 -t str -l 32 -p 0 -d "RAWFS vboot test\r\n"
+	
 	patch -f $@ -a 544 -t dw -d 2 # Start of stage 2
 	patch -f $@ -a 546 -t dw -d $(shell \
 		$(TOOL.bsize) $(BUILD.RAWFS.stage2) \
 	)
+
 	patch -f $@ -a 548 -t dd -d $(shell \
 		$(TOOL.bsize) $(BUILD.RAWFS.stage2) --offset=2 \
 	)
 	patch -f $@ -a 552 -t dd -d $(shell \
+		$(TOOL.bsize) $(BUILD.KERNEL.stub) \
+	)
+
+	patch -f $@ -a 556 -t dd -d $(shell \
 		$(TOOL.bsize) $(BUILD.RAWFS.stage2) $(BUILD.KERNEL.stub) --offset=2 \
+	)
+	patch -f $@ -a 560 -t dd -d $(shell \
+		$(TOOL.bsize) $(BUILD.RAMDISK) \
 	)
 
 $(BUILD.RAWFS.stage1):

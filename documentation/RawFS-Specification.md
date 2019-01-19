@@ -28,12 +28,13 @@ bootable.
 The Metadata Block is a binary blob of configuration specific information. It
 has the following structure:
 
-| Name        | Offset | Size |
-| ----------- | ------ | ---- |
-| boot_string | 0      | 32   |
-| stage2_off  | 32     | 2    |
-| stage2_len  | 34     | 2    |
-| kernel_off  | 36     | 4    |
-| kernel_len  | 38     | 4    |
-| ramdisk_off | 42     | 4    |
-| ramdisk_len | 46     | 4    |
+| Name         | Offset           | Size |
+| ------------ | ---------------- | ---- |
+| boot_string  | 0                | 32   |
+| stage2_off   | 32               | 2    |
+| stage2_len   | 34               | 2    |
+| kernel_off   | 36               | 4    |
+| kernel_len   | 38               | 4    |
+| module_count | 42               | 4    |
+| module_off   | 46 + (index * 8) | 4    |
+| module_len   | 50 + (index * 8) | 4    |

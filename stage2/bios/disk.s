@@ -20,6 +20,9 @@
 
 	bits	16
 
+; BIOS Parameter Block structure definition. This is the boot sector that was
+; Stage 1, and it contains much of the disk information that we need to read
+; the boot disk.
 STRUC BPB
 	.jmpcode			resb 3
 	.oem				resb 8
@@ -41,10 +44,20 @@ STRUC BPB
 	.volumeId			resd 1
 	.volumeLabel		resb 11
 	.fsType				resb 8
+	.boot_code			resb 448
+	.signature			resw 1
 ENDSTRUC
 
 ; Convert a logical block address (LBA) into a cylinder-head-sector (CHS) 
 ; address.
+;	
+;	* EAX [in] 		: The LBA sector number to be converted.
+;	* BP-18 [in]	: The sectors per track of the boot disk.
+;	* BP-20 [out]	: The absolute sector number.
+;	* BP-22 [out]	: The absolute head number.
+;	* BP-24 [out]	: The absolute track/cylinder number.
+;	* BP-26 [in]	: The number of heads of the boot disk.
+;
 _lbachs:
 	.calculation:
 		xor dx, dx
@@ -60,6 +73,11 @@ _lbachs:
 
 ; Read the specified number of sectors at a given location from the disk into 
 ; the provided memory location.
+;
+;	* EDI [in]		: The memory location in which sectors should be read to
+;	* EAX [in]		: The LBA starting sector on disk to read from
+; 	* ECX [in]		: The number of sectors to read from disk.
+;
 _read_sectors:
 	.prologue:
 		push bp
@@ -113,27 +131,17 @@ _read_sectors:
 		jnz .next_attempt
 		int 0x18						; Retries exhausted. Report boot failure
 	.drive_read_success:
-		; We need to copy the sector to the appropriate location in memory. We
-		; need to re-enable unreal mode on segment ES.
-		mov eax, cr0
-		or al, 1
-		mov cr0, eax
-		jmp .@@
-  	.@@:
-		mov bx, 0x8
-		mov es, bx
-		and al, 0xFE
-		mov cr0, eax
-		; We now need to work out exactly where the sector is going.
+		; We need to copy the sector to the appropriate location in memory.
 		mov edi, [bp - 4]				; EDI = dst
 		mov eax, [bp - 16]				; EAX = idx
 		movzx ecx, word[bp - 30]		; ECX = bps
 		mul ecx							; EAX *= ECX
 		add edi, eax					; EDI += EAX
+		unreal es
 		; and perform the copy...
-		mov esi, 0x7e00
-		mov cx, 0x200
-		a32 rep movsb
+		mov esi, 0x7e00					; Copy from 0x7e00
+		mov cx, 0x200					; Copy an entire sector (512 bytes)
+		a32 rep movsb					; We must perform a 32-bit copy...
 	.next_sector:
 		mov eax, [bp - 16]				; Fetch the current index
 		inc eax							; Increment by one.

@@ -20,8 +20,9 @@
 
 	bits 	16
 
-$entry					dd 0
-
+; The ELF identity structure contains information about the ELF file itself,
+; what type of executable it contains, version data, etc. This should be
+; checked to ensure we are loading the correct type of executable.
 STRUC ELFIdent
 	.e_magic			resd 1
 	.e_class 			resb 1
@@ -32,6 +33,9 @@ STRUC ELFIdent
 	.e_pad				resb 7
 ENDSTRUC
 
+; The ELF header also contains information about machine compatibility 
+; requirements. For instance, what architecture it is being loaded on, where
+; the various sections of the program are located and it's entry point.
 STRUC ELFHdr
 	.e_ident			resb 16
 	.e_type				resw 1
@@ -49,6 +53,9 @@ STRUC ELFHdr
 	.e_shstrndx			resw 1
 ENDSTRUC
 
+; The ELF Program Header contains information about a specific section, 
+; including that type, its offset in the file, where it expects to be located,
+; size, etc...
 STRUC ELFPhdr
 	.p_type				resd 1
 	.p_offset			resd 1
@@ -60,19 +67,6 @@ STRUC ELFPhdr
 	.p_align 			resd 1
 ENDSTRUC
 
-STRUC ELFShdr
-	.sh_name			resd 1
-	.sh_type			resd 1
-	.sh_flags			resd 1
-	.sh_addr 			resd 1
-	.sh_offset			resd 1
-	.sh_size			resd 1
-	.sh_link			resd 1
-	.sh_info			resd 1
-	.sh_addralign		resd 1
-	.sh_entsize			resd 1
-ENDSTRUC
-
 ; This function will parse, verify and load the specified ELF program into 
 ; memory. It will not lead to the ELF program being launched directly. As part
 ; of this process, the multiboot header will be examined and the appropriate
@@ -82,6 +76,7 @@ _load_elf:
 		push bp
 		mov bp, sp
 	.stack_frame:
+		xchg bx, bx
 		push dword edi					; [bp - 4] elf_data
 	.elf:
 		call _check_elf
@@ -89,7 +84,7 @@ _load_elf:
 	.entry_point:
 		mov esi, [bp - 4]
 		mov eax, [es:esi + ELFHdr.e_entry]
-		mov dword[$entry], eax
+		mov dword[$KERNEL_ENTRY], eax
 	.epilogue:
 		mov sp, bp
 		pop bp
@@ -135,6 +130,7 @@ _check_elf:
 	.elf_fine:
 		ret
 
+; Parse the ELF program headers, and load each of them accordingly.
 _parse_elf_phdr:
 	.stack_frame:
 		push dword 0					; [bp - 10] phdr_offset
@@ -175,6 +171,9 @@ _parse_elf_phdr:
 		add esp, 8
 		ret
 
+; Load the specified ELF section. This involves copying the information inside
+; the ELF into its final destination for execution, and zeroing out any required
+; memory.
 _load_elf_section:
 	.prepare:
 		unreal es
@@ -182,9 +181,11 @@ _load_elf_section:
 		mov esi, [bp - 10]				; ESI = phdr_offset
 		mov edi, [es:esi + ELFPhdr.p_vaddr]
 		mov ecx, [es:esi + ELFPhdr.p_filesz]
+		shr ecx, 4
+		inc ecx
 		mov esi, [es:esi + ELFPhdr.p_offset]
 		add esi, dword[bp - 4]			; ESI += elf_data
 	.copy:
-		a32 rep movsb
+		a32 rep movsd
 	.epilogue:
 		ret

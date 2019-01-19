@@ -20,17 +20,31 @@
 
 	bits	16
 
+; Query the BIOS for information about the memory layout of the system. With
+; this there are two types of memory information gathered. One is a fall back to
+; the other.
+;
+;	1. Upper and Lower memory - this is a fall back option. It does not give 
+;	   much in the way of reliable information.
+;	2. Memory Map - this is the preferred option for the kernel to make use of.
+;	   It provides information about how physical memory is laid out, what is
+; 	   usable and what is not usable.
+;
+; The memory map needs to be translated to be compliant with the multiboot 
+; specification.
 _detect_memory_bios:
 	.detect_low_memory:
-		xor ax, ax
-		mov ds, ax
+		xor ax, ax							; Make sure we reset DS back to
+		mov ds, ax							; Real Mode, or we'll crash!
 		clc
-		int 0x12
+		int 0x12							; Detect lower memory.
 		unreal es
-		mov edi, dword[_mb_info]
+		mov edi, dword[_mb_info]			; Write it into the multiboot info
 		mov dword[es:edi + MBInfo.mem_lower], eax
 	.read_memory_map:
-		call _read_memory_map
+		call _read_memory_map 				; Attempt to read the memory map.
+		jnc .calculate_upper_memory			; Calculate upper memory if success
+		int 0x18							; Indicate a boot failure.
 	.calculate_upper_memory:
 		mov edi, dword[_mb_info]
 		mov eax, dword[es:edi + MBInfo.mmap_length]
@@ -58,13 +72,14 @@ _detect_memory_bios:
 		sub eax, edx
 		mov dword[es:edi + MBInfo.mem_upper], edx
 	.update_flags:
-		xchg bx, bx
 		mov eax, dword[es:edi + MBInfo.flags]
 		or eax, (MULTIBOOT_INFO_MEMORY | MULTIBOOT_INFO_MEM_MAP)
 		mov dword[es:edi + MBInfo.flags], eax
 	.epilogue:
 		ret
 
+; This is an involved routine, and makes use of most of the general purpose
+; registers. It reads the memory map from the BIOS, using INT 0x15/EAX=E820.
 _read_memory_map:
 	.prepare:
 		push bp

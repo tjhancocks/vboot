@@ -26,16 +26,11 @@
 ; what to setup.
 _entry:
 	jmp short _start
-_pref:
-	.e820			db 	1	; Should an E820 memory map be searched for
-	.acpi			db	1 	; Should ACPI information be determined
-	.vesa 			db  0	; Should a VESA linear video mode be set
-	.def_width		dw 	640 ; The default screen width if native not found
-	.def_height		dw 	480 ; The default screen height if native not found
 
 ; Read-only constants used in the second stage of the vboot bootloader.
 _vboot_name:		db "vboot bootloader v0.1", 0x00
 _mb_info:			dd 0x10000
+
 ; The starting point for the second stage of the vboot bootloader.
 _start:
 	.enable_a20:
@@ -49,8 +44,7 @@ _start:
 		call _go_unreal
 		call _load_kernel
 		call _prepare_mb_info
-		; call _prepare_vesa
-		; call _prepare_mmap
+		call _load_modules
 	.pmode_32:
 		cli
 		xor ax, ax							; Make sure we're back to a normal
@@ -80,6 +74,7 @@ _pmode_gdt:
 _pmode_gdt_end:
 
 ; Include all the required components for the second stage.
+	%include "stage2/bios/variables.s"
 	%include "stage2/bios/multiboot.s"
 	%include "stage2/bios/raw.s"
 	%include "stage2/bios/vesa.s"
@@ -88,21 +83,11 @@ _pmode_gdt_end:
 	%include "stage2/bios/elf.s"
 	%include "stage2/bios/memory.s"
 
-; Boot Configuration - This is a structure that resides in memory and can be
-; referenced later by the _third_ stage of the bootloader. The third stage will
-; be responsible for loading the kernel and ramdisk, and will need to know about
-; the configuration determined in this stage.
-	BOOT_CONF		equ 0x7800
-STRUC BootConf
-	.vesa			resb 1
-	.scr_width		resw 1
-	.scr_height		resw 1
-	.scr_depth		resb 1
-ENDSTRUC
-
+; We need a small 32-bit stub in which to jump too when setting the CS segment
+; register. This stub simply needs to perform a jump into the kernel.
 	bits 	32
 _boot_kernel:
-		mov esi, dword[$entry]
+		mov esi, dword[$KERNEL_ENTRY]
 		mov eax, MULTIBOOT_BOOTLOADER_MAGIC
 		mov ebx, dword[_mb_info]
 		jmp esi

@@ -24,18 +24,26 @@
 ; filesystem
 %ifdef __RAWFS__
 
+; Location of the RawFS meta-data. This meta-data contains information about
+; where various "files" are located on disk.
 	RAWFS_ADDRESS	equ 0x7a00
 
+; Structural definition of the RawFS meta-data sector. 
 STRUC RawFS
 	.boot_message	resb 32
 	.stage2_off		resw 1
 	.stage2_len		resw 1
 	.kernel_off		resd 1
 	.kernel_len		resd 1
-	.ramdisk_off	resd 1
-	.ramdisk_len	resd 1
+	.module_count 	resd 1
+	.module_off		resd 1
+	.module_len		resd 1
 ENDSTRUC
 
+; Load the kernel into memory. This assumes an ELF Kernel. The kernel will be
+; loaded into memory from disk at the 16MiB mark, and then the ELF format parsed
+; and final program code placed at the 1MiB mark (most likely. This may be
+; influenced by the ELF file itself)
 _load_kernel:
 	.prologue:
 		push bp
@@ -49,6 +57,21 @@ _load_kernel:
 	.parse_elf:
 		mov edi, 0x01000000						; and should be adjusted to be
 		call _load_elf							; dynamic...
+	.epilogue:
+		mov sp, bp
+		pop bp
+		ret
+
+; Load any modules required by the kernel. This will be loaded into memory
+; immediately after the end of the kernel, aligned to the next frame boundary.
+_load_modules:
+	.prologue:
+		push bp
+		mov bp, sp
+	.find_modules:
+		xchg bx, bx
+		mov si, RAWFS_ADDRESS
+		mov ecx, dword[si + RawFS.module_count]
 	.epilogue:
 		mov sp, bp
 		pop bp
