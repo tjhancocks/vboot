@@ -24,7 +24,8 @@
 ; determined when the kernel ELF file is parsed. These include the entry point
 ; for executing the kernel, its base location in memory and where it ends.
 	$KERNEL_ENTRY			dd 0x00000000
-	$KERNEL_BASE			dd 0x00000000
+	$KERNEL_BASE			dd 0xFFFFFFFF
+	$KERNEL_SIZE			dd 0x00000000
 	$KERNEL_LIMIT			dd 0x00000000
 
 ; These contain information about the modules loaded by vboot for the kernel.

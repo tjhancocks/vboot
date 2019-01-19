@@ -76,7 +76,6 @@ _load_elf:
 		push bp
 		mov bp, sp
 	.stack_frame:
-		xchg bx, bx
 		push dword edi					; [bp - 4] elf_data
 	.elf:
 		call _check_elf
@@ -179,13 +178,40 @@ _load_elf_section:
 		unreal es
 		unreal ds
 		mov esi, [bp - 10]				; ESI = phdr_offset
+	.zero:
+		mov edi, [es:esi + ELFPhdr.p_vaddr]
+		mov ecx, [es:esi + ELFPhdr.p_memsz]
+		shr ecx, 2
+		inc ecx
+		xor eax, eax
+		a32 rep stosd
+	.copy:
 		mov edi, [es:esi + ELFPhdr.p_vaddr]
 		mov ecx, [es:esi + ELFPhdr.p_filesz]
-		shr ecx, 4
+		shr ecx, 2
 		inc ecx
 		mov esi, [es:esi + ELFPhdr.p_offset]
 		add esi, dword[bp - 4]			; ESI += elf_data
-	.copy:
 		a32 rep movsd
+	.update_kernel_limits:
+		xor ax, ax
+		mov ds, ax
+		mov esi, [bp - 10]				; ESI = phdr_offset
+	.check_base:
+		mov eax, [$KERNEL_BASE]
+		mov ebx, [es:esi + ELFPhdr.p_vaddr]
+		cmp eax, ebx
+		jbe .check_size
+		mov [$KERNEL_BASE], ebx
+	.check_size:
+		mov eax, [$KERNEL_SIZE]
+		mov ebx, [es:esi + ELFPhdr.p_memsz]
+		add eax, ebx
+		mov [$KERNEL_SIZE], eax
+	.calculate_limit:
+		mov eax, [$KERNEL_SIZE]
+		mov ebx, [$KERNEL_BASE]
+		add eax, ebx
+		mov [$KERNEL_LIMIT], eax
 	.epilogue:
 		ret

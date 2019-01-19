@@ -69,7 +69,6 @@ _load_modules:
 		push bp
 		mov bp, sp
 	.find_modules:
-		xchg bx, bx
 		mov si, RAWFS_ADDRESS
 		mov ecx, dword[si + RawFS.module_count]
 	.epilogue:
