@@ -99,6 +99,28 @@ __attribute__((noreturn)) void kmain(
 		mb->mmap_addr == 0x20000, "mmap_addr should be 0x20000", mb->mmap_addr
 	);
 
+	assert(
+		mb->mods_count == 1, "mods_count should be 1", mb->mods_count
+	);
+	assert(
+		mb->mods_addr == (unsigned int)&kend, 
+		"mods_addr is immediately after kernel end", mb->mods_addr
+	);
+
+	if (mb->mods_count > 0) {
+		multiboot_module_t *mod = (void *)mb->mods_addr;
+		unsigned int mod_count = mb->mods_count;
+
+		assert(
+			mod[0].mod_start == (unsigned int)&kend + 0x1000, 
+			"mod[0].mod_start has expected start", mod[0].mod_start
+		);
+		assert(
+			mod[0].mod_end == (unsigned int)&kend + 0x1000 + 0x200, 
+			"mod[0].mod_end has expected end", mod[0].mod_end
+		);
+	}
+
 	/* make sure we don't fall out of the end of the kernel. */
 	for (;;)
 		__asm__ __volatile__("hlt");

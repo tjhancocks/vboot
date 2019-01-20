@@ -100,7 +100,7 @@ _read_sectors:
 		mov word[bp - 18], ax			; ... and store it locally.
 		movzx eax, word[di + BPB.headCount]	; Fetch the head count value...
 		mov word[bp - 26], ax			; ... and store it locally.
-		movzx eax, word[di + BPB.drive]	; Fetch the drive number value...
+		movzx eax, byte[di + BPB.drive]	; Fetch the drive number value...
 		mov word[bp - 28], ax			; ... and store it locally.
 		movzx eax, word[di + BPB.bps]	; Fetch the bytes per sector value...
 		mov word[bp - 30], ax			; ... and store it locally.
@@ -138,6 +138,7 @@ _read_sectors:
 		mul ecx							; EAX *= ECX
 		add edi, eax					; EDI += EAX
 		unreal es
+		unreal ds
 		; and perform the copy...
 		mov esi, 0x7e00					; Copy from 0x7e00
 		mov cx, 0x200					; Copy an entire sector (512 bytes)

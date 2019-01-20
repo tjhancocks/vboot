@@ -74,11 +74,11 @@ _pmode_gdt:
 _pmode_gdt_end:
 
 ; Include all the required components for the second stage.
+	%include "stage2/bios/unreal.s"
 	%include "stage2/bios/variables.s"
 	%include "stage2/bios/multiboot.s"
 	%include "stage2/bios/raw.s"
 	%include "stage2/bios/vesa.s"
-	%include "stage2/bios/unreal.s"
 	%include "stage2/bios/disk.s"
 	%include "stage2/bios/elf.s"
 	%include "stage2/bios/memory.s"

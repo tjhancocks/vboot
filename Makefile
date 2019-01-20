@@ -50,7 +50,9 @@ stub-kernel: $(BUILD.KERNEL.stub)
 .PHONY: rawfs-test
 rawfs-test: clean $(BUILD.RAWFS.disk)
 	bochs -q "boot:a" "floppya: 1_44=$(BUILD.RAWFS.disk), status=inserted" \
-		"magic_break: enabled=1"
+		"magic_break: enabled=1" \
+		 "com1: enabled=1, mode=file, dev=bochs.log" \
+		 "memory: guest=256, host=256"
 
 .PHONY: rawfs-test-q
 rawfs-test-q: clean $(BUILD.RAWFS.disk)
@@ -62,41 +64,44 @@ $(BUILD.RAWFS.disk): $(BUILD.RAWFS.stage1) \
 					 $(BUILD.RAWFS.stage2) \
 					 $(BUILD.KERNEL.stub)
 	-mkdir $(BUILD)
-	dd if=/dev/zero of=$@ \
-		bs=512 count=2880
-	dd if=$(BUILD.RAWFS.stage1) of=$@ \
-		bs=512 conv=notrunc
-	dd if=$(BUILD.RAWFS.stage2) of=$@ \
-		bs=512 seek=2 conv=notrunc
+	# Create a new disk image
+	dd if=/dev/zero of=$@ bs=512 count=2880
+
+	# Add the first stage (boot sector)
+	dd if=$(BUILD.RAWFS.stage1) of=$@ bs=512 conv=notrunc
+
+	# Add the test bootloader string
+	patch -f $@ -a 512 -t str -l 32 -p 0 -d "RAWFS vboot test\r\n"
+
+	# Add the second stage and information about it
+	dd if=$(BUILD.RAWFS.stage2) of=$@ bs=512 seek=2 conv=notrunc
+	patch -f $@ -a 544 -t dw -d 2
+	patch -f $@ -a 546 -t dw -d $(shell $(TOOL.bsize) $(BUILD.RAWFS.stage2))
+
+	# Add the kernel and information about it.
 	dd if=$(BUILD.KERNEL.stub) of=$@ \
 		bs=512 seek=$(shell \
 			$(TOOL.bsize) $(BUILD.RAWFS.stage2) --offset=2 \
 		) conv=notrunc
+	patch -f $@ -a 548 -t dd -d $(shell $(TOOL.bsize) $(BUILD.RAWFS.stage2) \
+		--offset=2 \
+	)
+	patch -f $@ -a 552 -t dd -d $(shell $(TOOL.bsize) $(BUILD.KERNEL.stub))
+
+	# Specify the number of modules present.
+	patch -f $@ -a 556 -t dd -d 1
+
+	# Add Module 1: The ramdisk 
 	dd if=$(BUILD.RAMDISK) of=$@ \
 		bs=512 seek=$(shell \
 			$(TOOL.bsize) $(BUILD.RAWFS.stage2) $(BUILD.KERNEL.stub) \
 			--offset=2 \
 		) conv=notrunc
-	patch -f $@ -a 512 -t str -l 32 -p 0 -d "RAWFS vboot test\r\n"
-	
-	patch -f $@ -a 544 -t dw -d 2 # Start of stage 2
-	patch -f $@ -a 546 -t dw -d $(shell \
-		$(TOOL.bsize) $(BUILD.RAWFS.stage2) \
-	)
-
-	patch -f $@ -a 548 -t dd -d $(shell \
-		$(TOOL.bsize) $(BUILD.RAWFS.stage2) --offset=2 \
-	)
-	patch -f $@ -a 552 -t dd -d $(shell \
-		$(TOOL.bsize) $(BUILD.KERNEL.stub) \
-	)
-
-	patch -f $@ -a 556 -t dd -d $(shell \
+	patch -f $@ -a 560 -t dd -d $(shell \
 		$(TOOL.bsize) $(BUILD.RAWFS.stage2) $(BUILD.KERNEL.stub) --offset=2 \
 	)
-	patch -f $@ -a 560 -t dd -d $(shell \
-		$(TOOL.bsize) $(BUILD.RAMDISK) \
-	)
+	patch -f $@ -a 564 -t dd -d $(shell $(TOOL.bsize) $(BUILD.RAMDISK))
+
 
 $(BUILD.RAWFS.stage1):
 	-mkdir $(BUILD)

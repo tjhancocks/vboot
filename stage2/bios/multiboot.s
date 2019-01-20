@@ -184,7 +184,6 @@ _prepare_mb_info:
 		mov es, ax
 		mov ds, ax
 		mov ecx, 29
-		xchg bx, bx
 		mov edi, dword[_mb_info]
 		a32 rep stosd
 	.boot_loader_name:

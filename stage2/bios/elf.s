@@ -124,7 +124,6 @@ _load_elf:
 	.elf:
 		call _check_elf
 		call _parse_elf_phdr
-		xchg bx, bx
 		call _parse_elf_shdr
 	.entry_point:
 		mov esi, [bp - 4]
