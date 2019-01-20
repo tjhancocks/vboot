@@ -54,10 +54,24 @@ _detect_memory_bios:
 		div ecx
 		mov ecx, eax
 	.next_entry:
-		mov eax, dword[es:esi + 8]			; Fetch the lower length
-		mov ebx, dword[es:esi + 16]			; Fetch the type
+		unreal ds
+		push esi
+		push edi
+		push ecx
+		mov edi, esi						; Make sure ESI/EDI are the same so
+		add esi, 20							; that we can shuffle the bytes of
+		add edi, 24							; ESI along by 4, into the location
+		mov ecx, 5							; of EDI. We need to work backwards
+		std 								; to prevent memory corruptions.
+		a32 rep movsd
+		pop ecx
+		pop edi
+		pop esi
+		mov dword[es:esi], 24				; Set the size of the mmap entry
+		mov ebx, dword[es:esi + 20]			; Fetch the type
 		cmp ebx, 1							; Is the block free for use?
 		jne .skip_entry
+		mov eax, dword[es:esi + 12]			; Fetch the lower length
 		shr eax, 10							; Get the number of KiB
 		add edx, eax						; EDX += EAX
 	.skip_entry:
@@ -70,7 +84,7 @@ _detect_memory_bios:
 		mov eax, dword[es:edi + MBInfo.mem_lower]
 		xchg eax, edx
 		sub eax, edx
-		mov dword[es:edi + MBInfo.mem_upper], edx
+		mov dword[es:edi + MBInfo.mem_upper], eax
 	.update_flags:
 		mov eax, dword[es:edi + MBInfo.flags]
 		or eax, (MULTIBOOT_INFO_MEMORY | MULTIBOOT_INFO_MEM_MAP)
@@ -138,7 +152,6 @@ _read_memory_map:
 		clc
 		jmp .epilogue
 	.failed:
-		xchg bx, bx
 		stc
 	.epilogue:
 		pop bp
