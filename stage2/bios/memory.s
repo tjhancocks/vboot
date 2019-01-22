@@ -59,8 +59,8 @@ _detect_memory_bios:
 		push edi
 		push ecx
 		mov edi, esi						; Make sure ESI/EDI are the same so
-		add esi, 20							; that we can shuffle the bytes of
-		add edi, 24							; ESI along by 4, into the location
+		add esi, 16							; that we can shuffle the bytes of
+		add edi, 20							; ESI along by 4, into the location
 		mov ecx, 5							; of EDI. We need to work backwards
 		std 								; to prevent memory corruptions.
 		a32 rep movsd

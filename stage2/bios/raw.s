@@ -52,10 +52,10 @@ _load_kernel:
 		mov si, RAWFS_ADDRESS
 		mov eax, dword[si + RawFS.kernel_off]
 		mov ecx, dword[si + RawFS.kernel_len]
-		mov edi, 0x01000000						; Load at the 16MiB location
+		mov edi, 0x00A00000						; Load at the 10MiB location
 		call _read_sectors						; This is hard coded for now
 	.parse_elf:
-		mov edi, 0x01000000						; and should be adjusted to be
+		mov edi, 0x00A00000						; and should be adjusted to be
 		call _load_elf							; dynamic...
 	.epilogue:
 		mov sp, bp
@@ -135,7 +135,6 @@ _load_modules:
 		mov [es:edi + MBInfo.mods_count], ecx ; Add it to the mb_info
 		mov eax, [$MODULE_LIST]				  ; Fetch the location of the module
 		mov [es:edi + MBInfo.mods_addr], eax  ; list and add it to mb_info
-		xchg bx, bx
 		mov eax, [es:edi + MBInfo.flags]
 		or eax, MULTIBOOT_INFO_MODS			  ; State that there are modules
 		mov [es:edi + MBInfo.flags], eax

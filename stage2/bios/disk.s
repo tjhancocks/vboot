@@ -95,6 +95,9 @@ _read_sectors:
 		push 0							; [bp - 28] uint16_t drive
 		push 0							; [bp - 30] uint16_t bps
 	.initialise:
+		xor eax, eax
+		mov ds, ax
+		mov es, ax
 		mov di, 0x7c00					; We need to get values from the BPB
 		movzx eax, word[di + BPB.spt]	; Fetch the sectors per track value...
 		mov word[bp - 18], ax			; ... and store it locally.
@@ -141,8 +144,9 @@ _read_sectors:
 		unreal ds
 		; and perform the copy...
 		mov esi, 0x7e00					; Copy from 0x7e00
-		mov cx, 0x200					; Copy an entire sector (512 bytes)
-		a32 rep movsb					; We must perform a 32-bit copy...
+		mov ecx, 0x80					; Copy an entire sector (512 bytes)
+		cld
+		a32 rep movsd					; We must perform a 32-bit copy...
 	.next_sector:
 		mov eax, [bp - 16]				; Fetch the current index
 		inc eax							; Increment by one.

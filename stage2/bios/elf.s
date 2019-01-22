@@ -224,18 +224,18 @@ _load_elf_program_section:
 		unreal ds
 		mov esi, [bp - 10]				; ESI = phdr_offset
 	.zero:
+		cld
 		mov edi, [es:esi + ELFPhdr.p_vaddr]
 		mov ecx, [es:esi + ELFPhdr.p_memsz]
 		shr ecx, 2
-		inc ecx
 		xor eax, eax
 		a32 rep stosd
 	.copy:
 		mov edi, [es:esi + ELFPhdr.p_vaddr]
 		mov ecx, [es:esi + ELFPhdr.p_filesz]
 		shr ecx, 2
-		inc ecx
-		mov esi, [es:esi + ELFPhdr.p_offset]
+		mov ebx, [es:esi + ELFPhdr.p_offset]
+		mov esi, ebx
 		add esi, dword[bp - 4]			; ESI += elf_data
 		a32 rep movsd
 	.epilogue:
