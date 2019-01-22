@@ -86,7 +86,7 @@ __attribute__((noreturn)) void kmain(
 		(unsigned int)&kend
 	);
 
-	assert(mb->mem_lower == 640, "mem_lower should be 640KiB", mb->mem_lower);
+	assert(mb->mem_lower == 639, "mem_lower should be 639KiB", mb->mem_lower);
 	assert(
 		mb->mem_upper >= 0, "mem_upper should be greater than 0KiB", 
 		mb->mem_upper
