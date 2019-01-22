@@ -29,6 +29,7 @@ BUILD.RAWFS.disk = $(BUILD)/rawfs.img
 BUILD.KERNEL.stub = $(BUILD)/stub-kernel
 BUILD.RAMDISK = $(ROOT)/kernel/ramdisk
 TOOL.bsize = $(ROOT)/tool/bsize/bsize.sh
+TOOL.vboot-make = $(BUILD)/tool/vboot-make
 
 TARGET.TRIPLET = i686-elf
 TOOL.CC = $(shell which $(TARGET.TRIPLET)-gcc)
@@ -38,7 +39,7 @@ TOOL.AS = $(shell which nasm)
 ################################################################################
 
 .PHONY: all
-all: $(BUILD.RAWFS.disk)
+all: $(BUILD.RAWFS.disk) ;
 
 .PHONY: clean
 clean:
@@ -57,6 +58,10 @@ rawfs-test: clean $(BUILD.RAWFS.disk)
 .PHONY: rawfs-test-q
 rawfs-test-q: clean $(BUILD.RAWFS.disk)
 	qemu-system-i386 -m 256 -serial stdio -fda $(BUILD.RAWFS.disk)
+
+.PHONY: tool
+tool: $(TOOL.vboot-make) ;
+
 
 ################################################################################
 
@@ -121,3 +126,9 @@ $(BUILD.KERNEL.stub):
 	$(TOOL.LD) -Tkernel/kernel.ld -nostdlib -nostartfiles -o $@ \
 		build/kernel/kernel.o \
 		build/kernel/start.o
+
+################################################################################
+
+$(TOOL.vboot-make): tool/vboot-make/vboot-make.c
+	-mkdir -p $(BUILD)/tool
+	$(CC) -o $@ $^
