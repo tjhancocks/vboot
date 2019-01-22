@@ -21,6 +21,7 @@
 	bits	16
 
 %macro unreal 1
+	push eax
 	mov eax, cr0
 	or al, 1
 	mov cr0, eax
@@ -31,6 +32,7 @@
 	mov cr0, eax
 	and al, 0xFE
 	mov cr0, eax
+	pop eax
 %endmacro
 
 _go_unreal:

@@ -92,6 +92,7 @@
 
 #ifndef ASM_FILE
 
+typedef unsigned char      		multiboot_uint8_t;
 typedef unsigned short          multiboot_uint16_t;
 typedef unsigned int            multiboot_uint32_t;
 typedef unsigned long long      multiboot_uint64_t;
@@ -190,6 +191,15 @@ struct multiboot_info
   multiboot_uint16_t vbe_interface_seg;
   multiboot_uint16_t vbe_interface_off;
   multiboot_uint16_t vbe_interface_len;
+
+  /* Framebuffer */
+  multiboot_uint64_t framebuffer_addr;
+  multiboot_uint32_t framebuffer_pitch;
+  multiboot_uint32_t framebuffer_width;
+  multiboot_uint32_t framebuffer_height;
+  multiboot_uint8_t framebuffer_bpp;
+  multiboot_uint8_t framebuffer_type;
+  multiboot_uint8_t color_info[6];
 };
 typedef struct multiboot_info multiboot_info_t;
 

@@ -50,8 +50,10 @@ align   4
 start:
 	cli
 	mov 	esp, stack + STK_SIZE
-	push 	eax
-	push 	ebx
+	push 	ecx 					; Kernel Limit (upper address)
+	push 	edx						; Kernel Base (lower address)
+	push 	eax						; boot_magic number
+	push 	ebx						; multiboot_info
 	call 	kmain
 	jmp 	$
 

@@ -108,169 +108,169 @@ STRUC VBEMode
 	.reserved1			resb 206
 ENDSTRUC
 
-_prepare_vesa:
-  .prologue:
-  	push bp
-  	mov bp, sp
-  	push 0							; [bp-2] vbe mode number
-  	push 0							; [bp-4] vbe mode offset
-  .check_vga_text_mode:
-	cmp byte[_pref.vesa], 0		; Are we wanting VESA?
-	jne .vesa
-  .no_vesa:
-  	jmp .epilogue
-  .vesa:
-  	push es
-  	mov di, VESA_INFO
-  	mov dword[di + VBEInfo.signature], "VBE2"
-  	mov ax, 0x4F00					; BIOS function to get VESA VBE info
-  	int 0x10
-  	pop es
-  	cmp ax, 0x004f					; Success?
-  	je .L1
-  	jmp .vesa_error
-  .L1:
-  	mov di, VESA_INFO
-  	mov eax, dword[di + VBEInfo.signature]
-  	cmp eax, "VESA"					; Have we go back the correct thing?
-  	je .L2
-  	jmp .vesa_error
-  .L2:
-  	movzx eax, word[di + VBEInfo.version]
-  	cmp ax, 0x0200					; Is the VESA version too old?
-  	jge .read_edid
-  	jmp .vesa_error
-  .read_edid:
-  	push es
-  	mov eax, 0x4f15					; BIOS function to get EDID info
-  	mov ebx, 0x1
-  	xor ecx, ecx
-  	xor edx, edx
-  	mov edi, EDID_INFO
-  	int 0x10
-  	pop es
-  	cmp ax, 0x004f					; Success?
-  	jne .L3
-  	nop
-  	jmp .find_preferred_vbe_mode
-  .L3:
-  	jmp .use_default_vbe_mode
-  .find_preferred_vbe_mode:
-  	mov di, EDID_INFO
-  	mov si, BOOT_CONF
-  	movzx eax, byte[di + EDID.timing_desc1]
-  	or al, al
-  	jz .L3							; Bad data. Use default mode instead
-  	movzx eax, byte[di + EDID.timing_desc1 + 2] ; Low byte of Width
-  	mov word[si + BootConf.scr_width], ax
-  	movzx eax, byte[di + EDID.timing_desc1 + 4]
-  	and eax, 0xF0
-  	shl eax, 4
-  	or word[si + BootConf.scr_width], ax
-  	movzx eax, byte[di + EDID.timing_desc1 + 5] ; Low byte of Height
-  	mov word[si + BootConf.scr_height], ax
-  	movzx eax, byte[di + EDID.timing_desc1 + 7]
-  	and eax, 0xF0
-  	shl eax, 4
-  	or word[si + BootConf.scr_height], ax
-  .validate_mode:
-  	mov si, BOOT_CONF
-  	movzx eax, word[si + BootConf.scr_width]
-  	or ax, ax
-  	jz .use_default_vbe_mode
-  	movzx eax, word[si + BootConf.scr_height]
-  	or ax, ax
-  	jz .use_default_vbe_mode
-  	nop
-  	jmp .set_vbe_mode
-  .use_default_vbe_mode:
-  	mov si, BOOT_CONF
-  	movzx eax, word[_pref.def_width]
-  	movzx ebx, word[_pref.def_height]
-  	mov word[si + BootConf.scr_width], ax
-  	mov word[si + BootConf.scr_height], bx
-  .set_vbe_mode:
-  	mov word[si + BootConf.scr_depth], 32
-  	mov di, VESA_INFO
-  	movzx esi, word[di + VBEInfo.video_modes_off]
-  	mov [bp - 4], si				; Keep the VBE offset in local memory
-  .find_vbe_mode:
-  	push fs
-  	mov di, VESA_INFO
-  	movzx eax, word[di + VBEInfo.video_modes_seg]
-  	mov fs, ax
-  	movzx esi, word[bp - 4]			; Fetch the offset
-  	movzx edx, word[fs:si]
-  	add si, 2
-  	mov word[bp - 4], si			; Update the offset
-  	mov word[bp - 2], dx			; Update the current mode
-  	pop fs
-  	movzx eax, word[bp - 2]			; Fetch the current mode
-  	cmp ax, 0xffff					; Is this the end of the list?
-  	je .vbe_mode_not_found
-  	nop
-  	jmp .get_vbe_mode_info
-  .vbe_mode_not_found:
-  	jmp .vesa_error
-  .get_vbe_mode_info:
-  	push es
-  	mov ax, 0x4f01					; BIOS function to get VBE mode info
-  	movzx ecx, word[bp - 2]			; Fetch the current mode
-  	mov di, VBE_MODE
-  	int 0x10
-  	pop es
-  	cmp ax, 0x004f					; Success?
-  	jne .L4
-  	nop
-  	jmp .check_vbe_mode
-  .L4:
-  	jmp .vesa_error
-  .check_vbe_mode:
-  	mov di, VBE_MODE
-  	mov si, BOOT_CONF
-  	movzx eax, word[si + BootConf.scr_width]
-  	movzx ebx, word[di + VBEMode.width]
-  	cmp ax, bx
-  	jne .next_vbe_mode				; Incorrect width
-  	movzx eax, word[si + BootConf.scr_height]
-  	movzx ebx, word[di + VBEMode.height]
-  	cmp ax, bx
-  	jne .next_vbe_mode				; Incorrect height
-  	movzx eax, byte[si + BootConf.scr_depth]
-  	movzx ebx, byte[di + VBEMode.bpp]
-  	cmp ax, bx
-  	jne .next_vbe_mode				; Incorrect depth
-  	movzx eax, word[di + VBEMode.attributes]
-  	cmp ax, 0x0081
-  	jz .next_vbe_mode				; No linear frame buffer
-  	nop
-  	jmp .found_vbe_mode
-  .next_vbe_mode:
-  	jmp .find_vbe_mode
-  .found_vbe_mode:
-  	push es
-  	mov ax, 0x4f02					; BIOS function to set the VESA mode
-  	movzx ebx, word[bp - 2]			; Fetch the current VBE mode
-  	or ebx, 0x4000
-  	xor cx, cx
-  	xor dx, dx
-  	xor di, di
-  	int 0x10
-  	pop es
-  	cmp ax, 0x004f
-  	jne .L5
-  	nop
-  	jmp .save_vbe_info
-  .L5:
-  	jmp .vesa_error
-  .save_vbe_info:
-  	jmp .epilogue
-  .vesa_error:
-  	nop
-  	mov si, BOOT_CONF
-  	mov byte[si + BootConf.vesa], 0		; Disable VESA in the config.
-  	jmp .epilogue
-  .epilogue:
-  	mov sp, bp
-  	pop bp
-  	ret
+; _prepare_vesa:
+;   .prologue:
+;   	push bp
+;   	mov bp, sp
+;   	push 0							; [bp-2] vbe mode number
+;   	push 0							; [bp-4] vbe mode offset
+;   .check_vga_text_mode:
+; 	cmp byte[_pref.vesa], 0			; Are we wanting VESA?
+; 	jne .vesa
+;   .no_vesa:
+;   	jmp .epilogue
+;   .vesa:
+;   	push es
+;   	mov di, VESA_INFO
+;   	mov dword[di + VBEInfo.signature], "VBE2"
+;   	mov ax, 0x4F00					; BIOS function to get VESA VBE info
+;   	int 0x10
+;   	pop es
+;   	cmp ax, 0x004f					; Success?
+;   	je .L1
+;   	jmp .vesa_error
+;   .L1:
+;   	mov di, VESA_INFO
+;   	mov eax, dword[di + VBEInfo.signature]
+;   	cmp eax, "VESA"					; Have we go back the correct thing?
+;   	je .L2
+;   	jmp .vesa_error
+;   .L2:
+;   	movzx eax, word[di + VBEInfo.version]
+;   	cmp ax, 0x0200					; Is the VESA version too old?
+;   	jge .read_edid
+;   	jmp .vesa_error
+;   .read_edid:
+;   	push es
+;   	mov eax, 0x4f15					; BIOS function to get EDID info
+;   	mov ebx, 0x1
+;   	xor ecx, ecx
+;   	xor edx, edx
+;   	mov edi, EDID_INFO
+;   	int 0x10
+;   	pop es
+;   	cmp ax, 0x004f					; Success?
+;   	jne .L3
+;   	nop
+;   	jmp .find_preferred_vbe_mode
+;   .L3:
+;   	jmp .use_default_vbe_mode
+;   .find_preferred_vbe_mode:
+;   	mov di, EDID_INFO
+;   	mov si, BOOT_CONF
+;   	movzx eax, byte[di + EDID.timing_desc1]
+;   	or al, al
+;   	jz .L3							; Bad data. Use default mode instead
+;   	movzx eax, byte[di + EDID.timing_desc1 + 2] ; Low byte of Width
+;   	mov word[si + BootConf.scr_width], ax
+;   	movzx eax, byte[di + EDID.timing_desc1 + 4]
+;   	and eax, 0xF0
+;   	shl eax, 4
+;   	or word[si + BootConf.scr_width], ax
+;   	movzx eax, byte[di + EDID.timing_desc1 + 5] ; Low byte of Height
+;   	mov word[si + BootConf.scr_height], ax
+;   	movzx eax, byte[di + EDID.timing_desc1 + 7]
+;   	and eax, 0xF0
+;   	shl eax, 4
+;   	or word[si + BootConf.scr_height], ax
+;   .validate_mode:
+;   	mov si, BOOT_CONF
+;   	movzx eax, word[si + BootConf.scr_width]
+;   	or ax, ax
+;   	jz .use_default_vbe_mode
+;   	movzx eax, word[si + BootConf.scr_height]
+;   	or ax, ax
+;   	jz .use_default_vbe_mode
+;   	nop
+;   	jmp .set_vbe_mode
+;   .use_default_vbe_mode:
+;   	mov si, BOOT_CONF
+;   	movzx eax, word[_pref.def_width]
+;   	movzx ebx, word[_pref.def_height]
+;   	mov word[si + BootConf.scr_width], ax
+;   	mov word[si + BootConf.scr_height], bx
+;   .set_vbe_mode:
+;   	mov word[si + BootConf.scr_depth], 32
+;   	mov di, VESA_INFO
+;   	movzx esi, word[di + VBEInfo.video_modes_off]
+;   	mov [bp - 4], si				; Keep the VBE offset in local memory
+;   .find_vbe_mode:
+;   	push fs
+;   	mov di, VESA_INFO
+;   	movzx eax, word[di + VBEInfo.video_modes_seg]
+;   	mov fs, ax
+;   	movzx esi, word[bp - 4]			; Fetch the offset
+;   	movzx edx, word[fs:si]
+;   	add si, 2
+;   	mov word[bp - 4], si			; Update the offset
+;   	mov word[bp - 2], dx			; Update the current mode
+;   	pop fs
+;   	movzx eax, word[bp - 2]			; Fetch the current mode
+;   	cmp ax, 0xffff					; Is this the end of the list?
+;   	je .vbe_mode_not_found
+;   	nop
+;   	jmp .get_vbe_mode_info
+;   .vbe_mode_not_found:
+;   	jmp .vesa_error
+;   .get_vbe_mode_info:
+;   	push es
+;   	mov ax, 0x4f01					; BIOS function to get VBE mode info
+;   	movzx ecx, word[bp - 2]			; Fetch the current mode
+;   	mov di, VBE_MODE
+;   	int 0x10
+;   	pop es
+;   	cmp ax, 0x004f					; Success?
+;   	jne .L4
+;   	nop
+;   	jmp .check_vbe_mode
+;   .L4:
+;   	jmp .vesa_error
+;   .check_vbe_mode:
+;   	mov di, VBE_MODE
+;   	mov si, BOOT_CONF
+;   	movzx eax, word[si + BootConf.scr_width]
+;   	movzx ebx, word[di + VBEMode.width]
+;   	cmp ax, bx
+;   	jne .next_vbe_mode				; Incorrect width
+;   	movzx eax, word[si + BootConf.scr_height]
+;   	movzx ebx, word[di + VBEMode.height]
+;   	cmp ax, bx
+;   	jne .next_vbe_mode				; Incorrect height
+;   	movzx eax, byte[si + BootConf.scr_depth]
+;   	movzx ebx, byte[di + VBEMode.bpp]
+;   	cmp ax, bx
+;   	jne .next_vbe_mode				; Incorrect depth
+;   	movzx eax, word[di + VBEMode.attributes]
+;   	cmp ax, 0x0081
+;   	jz .next_vbe_mode				; No linear frame buffer
+;   	nop
+;   	jmp .found_vbe_mode
+;   .next_vbe_mode:
+;   	jmp .find_vbe_mode
+;   .found_vbe_mode:
+;   	push es
+;   	mov ax, 0x4f02					; BIOS function to set the VESA mode
+;   	movzx ebx, word[bp - 2]			; Fetch the current VBE mode
+;   	or ebx, 0x4000
+;   	xor cx, cx
+;   	xor dx, dx
+;   	xor di, di
+;   	int 0x10
+;   	pop es
+;   	cmp ax, 0x004f
+;   	jne .L5
+;   	nop
+;   	jmp .save_vbe_info
+;   .L5:
+;   	jmp .vesa_error
+;   .save_vbe_info:
+;   	jmp .epilogue
+;   .vesa_error:
+;   	nop
+;   	mov si, BOOT_CONF
+;   	mov byte[si + BootConf.vesa], 0		; Disable VESA in the config.
+;   	jmp .epilogue
+;   .epilogue:
+;   	mov sp, bp
+;   	pop bp
+;   	ret
